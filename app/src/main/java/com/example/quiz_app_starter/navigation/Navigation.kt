@@ -1,0 +1,72 @@
+package com.example.quiz_app_starter.navigation
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import com.example.quiz_app_starter.presentation.QuestionScreen
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.example.quiz_app_starter.MainMenuScreen
+import com.example.quiz_app_starter.presentation.FinishScreen
+
+
+sealed class Screen(val route: String) {
+    object MainMenu : Screen("main_menu")
+    object Question : Screen("question")
+    object Finish : Screen("finish/{points}") {
+        fun createRoute(points: Int) = "finish/$points"
+    }
+}
+@Composable
+fun Navigation() {
+    val navController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = Screen.MainMenu.route
+    ) {
+        // 1. Main Menu
+        composable(route = Screen.MainMenu.route) {
+            MainMenuScreen(
+                modifier = Modifier,
+                onPlayClick = {
+                    navController.navigate(Screen.Question.route)
+                }
+            )
+        }
+
+        // 2. Question Screen
+        composable(route = Screen.Question.route) {
+            QuestionScreen(onQuizFinished = { score ->
+                navController.navigate(Screen.Finish.createRoute(score)) {
+                    // This removes the QuestionScreen from the backstack
+                    popUpTo(Screen.MainMenu.route) { inclusive = false }
+                }
+            })
+        }
+
+        // 3. Finish Screen
+        composable(
+            route = Screen.Finish.route,
+            arguments = listOf(navArgument("points") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val points = backStackEntry.arguments?.getInt("points") ?: 0
+
+            FinishScreen(
+                score = points,
+                onRestart = {
+                    navController.navigate(Screen.Question.route) {
+                        popUpTo(Screen.MainMenu.route) { inclusive = false }
+                    }
+                },
+                onHome = {
+                    navController.navigate(Screen.MainMenu.route) {
+                        popUpTo(Screen.MainMenu.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+    }
+}

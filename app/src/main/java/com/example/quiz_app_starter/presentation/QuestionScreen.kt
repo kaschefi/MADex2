@@ -45,19 +45,27 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuestionScreen(
-    questions: List<Question> = getDummyQuestions()
+    questions: List<Question> = getDummyQuestions(),
+    onQuizFinished: (Int) -> Unit
 ){
+
     var showDialog by remember { mutableStateOf(false) }
     var isCorrect by remember { mutableStateOf(false) }
     var timeOver by remember { mutableStateOf(false) }
     var correctCounter by remember { mutableStateOf(0) }
     var currentQuestionIndex by remember { mutableStateOf(0) }
     var selectedAnswer by remember { mutableStateOf<String?>(null) }
-    val currentQuestion = questions[currentQuestionIndex]
+    val currentQuestion = if (currentQuestionIndex < questions.size) questions[currentQuestionIndex] else questions.last()
     val timerDurationSeconds = 0
     val maxTime = 30
     var currentTime by remember { mutableStateOf(timerDurationSeconds) }
 
+    if (currentQuestionIndex >= questions.size) {
+        LaunchedEffect(Unit) {
+            onQuizFinished(correctCounter)
+        }
+        return
+    }
     // Alerts
     if (showDialog && isCorrect) {
         Alert(
@@ -112,13 +120,16 @@ fun QuestionScreen(
         bottomBar = {
             Button(
                 onClick = {
-                    if (isAnswerCorrect(selectedAnswer,currentQuestion)){
-                        isCorrect = true
-                        correctCounter ++
-                    }else if(selectedAnswer != null) {
-                    showDialog = true
-                }
-                          },
+                    if (selectedAnswer != null) {
+                        if (isAnswerCorrect(selectedAnswer, currentQuestion)) {
+                            isCorrect = true
+                            correctCounter++
+                        } else {
+                            isCorrect = false
+                        }
+                        showDialog = true
+                    }
+                },
                 modifier = Modifier
                            .fillMaxWidth()
                            .padding(16.dp)
@@ -140,8 +151,10 @@ fun QuestionScreen(
                     delay(1000L) // 1 sec
                     currentTime ++
                 }
-                showDialog = true
-                timeOver = true
+                if (!showDialog) {
+                    showDialog = true
+                    timeOver = true
+                }
 
             }
             LinearProgressIndicator(

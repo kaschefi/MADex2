@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.quiz_app_starter.ui.theme.QuizappstarterTheme
 import androidx.compose.ui.graphics.ColorFilter
+import com.example.quiz_app_starter.navigation.Navigation
+import com.example.quiz_app_starter.presentation.FinishScreen
 import com.example.quiz_app_starter.presentation.QuestionScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,7 +51,8 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding)
                     )
                 }*/
-                QuestionScreen()
+                //QuestionScreen()
+                Navigation()
             }
         }
     }
@@ -58,17 +61,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainMenuScreen(
     bestScore: Int = 0,
-    modifier: Modifier
+    modifier: Modifier,
+    onPlayClick: () -> Unit
 ) {
-    TopBar()
     Column(
         modifier = modifier
             .padding(16.dp).fillMaxWidth(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        ProgressBar()
-
         Image(
             painter = painterResource(id = R.drawable.quizicon),
             contentDescription = "App Logo",
@@ -120,9 +121,7 @@ fun MainMenuScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = {
-                Log.d("app", "play")
-            },
+            onClick = onPlayClick,
             modifier = Modifier.fillMaxWidth(0.6f),
             shape = MaterialTheme.shapes.medium
         ) {
@@ -158,6 +157,5 @@ fun ProgressBar() {
 @Composable
 fun MainMenuScreenPreview() {
     QuizappstarterTheme {
-        MainMenuScreen(3, Modifier)
     }
 }
