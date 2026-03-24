@@ -17,7 +17,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.RadioButton
@@ -28,6 +27,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -39,6 +39,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.quiz_app_starter.R
 import com.example.quiz_app_starter.model.Question
+import com.example.quiz_app_starter.model.QuestionScreenState
 import com.example.quiz_app_starter.model.getDummyQuestions
 import kotlinx.coroutines.delay
 
@@ -46,67 +47,63 @@ import kotlinx.coroutines.delay
 @Composable
 fun QuestionScreen(
     questions: List<Question> = getDummyQuestions(),
-    onQuizFinished: (Int) -> Unit
+    onQuizFinished: (Int) -> Unit,
+    onExit: () -> Unit
 ){
+    var state by remember {
+        mutableStateOf(QuestionScreenState(questions = questions))
+    }
 
-    var showDialog by remember { mutableStateOf(false) }
-    var isCorrect by remember { mutableStateOf(false) }
-    var timeOver by remember { mutableStateOf(false) }
-    var correctCounter by remember { mutableStateOf(0) }
-    var currentQuestionIndex by remember { mutableStateOf(0) }
-    var selectedAnswer by remember { mutableStateOf<String?>(null) }
-    val currentQuestion = if (currentQuestionIndex < questions.size) questions[currentQuestionIndex] else questions.last()
-    val timerDurationSeconds = 0
-    val maxTime = 30
-    var currentTime by remember { mutableStateOf(timerDurationSeconds) }
-
-    if (currentQuestionIndex >= questions.size) {
+    if (state.currentQuestionIndex >= state.questions.size) {
         LaunchedEffect(Unit) {
-            onQuizFinished(correctCounter)
+            onQuizFinished(state.points)
         }
         return
     }
-    // Alerts
-    if (showDialog && isCorrect) {
-        Alert(
-            title = "Correct!",
-            text = "",
-            onNextClicked = {
-                currentQuestionIndex += 1
-                selectedAnswer = null
-                showDialog = false
-            }
+
+    val currentQuestion = state.currentQuestion ?: return
+
+    val handleNext: () -> Unit = {
+        state = state.copy(
+            showDialog = false,
+            timeOver = false,
+            selectedAnswer = null,
+            currentTime = 0,
+            currentQuestionIndex = state.currentQuestionIndex + 1
         )
-    }else if (showDialog && timeOver){
+    }
+
+    // Timer logic updated to use unified state
+    LaunchedEffect(key1 = state.currentQuestionIndex) {
+        state = state.copy(currentTime = 0)
+        while (state.currentTime < state.maxTime && !state.showDialog) {
+            delay(1000L)
+            state = state.copy(currentTime = state.currentTime + 1)
+        }
+        if (!state.showDialog) {
+            state = state.copy(
+                isCorrect = false,
+                timeOver = true,
+                showDialog = true
+            )
+        }
+    }
+
+    // Feedback Dialog using derived state properties
+    if (state.showDialog) {
         Alert(
-            title = "No answer selected.\nTime is out.",
-            text = "The correct answer was: ${currentQuestion.correctAnswer}",
-            onNextClicked = {
-                currentQuestionIndex += 1
-                selectedAnswer = null
-                showDialog = false
-                timeOver = false
-            }
-        )
-    } else if (showDialog){
-        Alert(
-            title = "Wrong!",
-            text = "The correct answer was: ${currentQuestion.correctAnswer}",
-            onNextClicked = {
-                currentQuestionIndex += 1
-                selectedAnswer = null
-                showDialog = false
-            }
+            title = state.dialogTitle,
+            text = state.dialogText,
+            onNextClicked = handleNext
         )
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text("Quiz App")
-                }, actions = {
-                    IconButton(onClick = { Log.d("app","exit")}) {
+                title = { Text("Quiz App") },
+                actions = {
+                    IconButton(onClick = onExit) {
                         Image(
                             painter = painterResource(id = R.drawable.outline_exit_to_app_24),
                             contentDescription = "Exit",
@@ -120,21 +117,21 @@ fun QuestionScreen(
         bottomBar = {
             Button(
                 onClick = {
-                    if (selectedAnswer != null) {
-                        if (isAnswerCorrect(selectedAnswer, currentQuestion)) {
-                            isCorrect = true
-                            correctCounter++
-                        } else {
-                            isCorrect = false
-                        }
-                        showDialog = true
+                    if (state.selectedAnswer != null) {
+                        val correct = isAnswerCorrect(state.selectedAnswer, currentQuestion)
+                        state = state.copy(
+                            isCorrect = correct,
+                            points = if (correct) state.points + 1 else state.points,
+                            showDialog = true
+                        )
                     }
                 },
                 modifier = Modifier
-                           .fillMaxWidth()
-                           .padding(16.dp)
-                ) {
-                Text("submit")
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                enabled = state.selectedAnswer != null && !state.showDialog
+            ) {
+                Text("Submit")
             }
         }
     ) { innerPadding ->
@@ -144,27 +141,13 @@ fun QuestionScreen(
                 .padding(horizontal = 16.dp)
                 .fillMaxSize()
         ){
-            LaunchedEffect(key1 = currentQuestionIndex) {
-                currentTime = timerDurationSeconds
-
-                while(currentTime < maxTime){
-                    delay(1000L) // 1 sec
-                    currentTime ++
-                }
-                if (!showDialog) {
-                    showDialog = true
-                    timeOver = true
-                }
-
-            }
             LinearProgressIndicator(
-                progress = { currentTime.toFloat() / maxTime.toFloat() },
+                progress = { state.timerProgress },
                 modifier = Modifier.fillMaxWidth()
             )
 
-
             Spacer(modifier = Modifier.height(16.dp))
-            QuestionCard(currentQuestionIndex,currentQuestion)
+            QuestionCard(state.currentQuestionIndex, currentQuestion)
             Spacer(modifier = Modifier.height(16.dp))
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -172,16 +155,18 @@ fun QuestionScreen(
                 items(currentQuestion.answers) { answer ->
                     AnswerCard(
                         answer = answer,
-                        isSelected = (answer == selectedAnswer),
-                        onSelect = { selectedAnswer = answer }
+                        isSelected = (answer == state.selectedAnswer),
+                        onSelect = {
+                            if (!state.showDialog) {
+                                state = state.copy(selectedAnswer = answer)
+                            }
+                        }
                     )
                 }
             }
         }
     }
-
 }
-
 
 @Composable
 fun QuestionCard(currentQuestionIndex: Int, currentQuestion: Question){
@@ -192,6 +177,7 @@ fun QuestionCard(currentQuestionIndex: Int, currentQuestion: Question){
         )
     }
 }
+
 @Composable
 fun AnswerCard(answer: String, isSelected: Boolean, onSelect: () -> Unit ){
     Card(
@@ -210,7 +196,6 @@ fun AnswerCard(answer: String, isSelected: Boolean, onSelect: () -> Unit ){
                 onClick = onSelect,
                 selected = isSelected,
             )
-
         }
     }
 }
@@ -218,11 +203,12 @@ fun AnswerCard(answer: String, isSelected: Boolean, onSelect: () -> Unit ){
 fun isAnswerCorrect(selectedAnswer: String?, currentQuestion: Question): Boolean{
     return currentQuestion.correctAnswer == selectedAnswer
 }
+
 @Composable
 fun Alert(
     title: String,
     text: String,
-    onNextClicked: () -> Unit 
+    onNextClicked: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = { },

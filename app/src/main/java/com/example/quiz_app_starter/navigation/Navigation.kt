@@ -39,12 +39,18 @@ fun Navigation() {
 
         // 2. Question Screen
         composable(route = Screen.Question.route) {
-            QuestionScreen(onQuizFinished = { score ->
-                navController.navigate(Screen.Finish.createRoute(score)) {
-                    // This removes the QuestionScreen from the backstack
-                    popUpTo(Screen.MainMenu.route) { inclusive = false }
+            QuestionScreen(
+                onQuizFinished = { score ->
+                    navController.navigate(Screen.Finish.createRoute(score)) {
+                        popUpTo(Screen.MainMenu.route) { inclusive = false }
+                    }
+                },
+                onExit = {
+                    navController.navigate(Screen.MainMenu.route) {
+                        popUpTo(Screen.MainMenu.route) { inclusive = true }
+                    }
                 }
-            })
+            )
         }
 
         // 3. Finish Screen
