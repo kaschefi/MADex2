@@ -2,16 +2,13 @@ package com.example.quiz_app_starter.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.quiz_app_starter.MainMenuScreen
-import com.example.quiz_app_starter.model.getDummyQuestions
 import com.example.quiz_app_starter.presentation.FinishScreen
 import com.example.quiz_app_starter.presentation.QuestionScreen
 import com.example.quiz_app_starter.presentation.QuestionScreenViewModel
@@ -44,13 +41,7 @@ fun Navigation() {
 
 
         composable(route = Screen.Question.route) {
-            val questionViewModel: QuestionScreenViewModel = viewModel(
-                factory = object : ViewModelProvider.Factory {
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        return QuestionScreenViewModel(getDummyQuestions()) as T
-                    }
-                }
-            )
+            val questionViewModel: QuestionScreenViewModel = hiltViewModel()
 
             QuestionScreen(
                 viewModel = questionViewModel,

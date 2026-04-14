@@ -4,8 +4,10 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.quiz_app_starter.data.repository.QuestionRepository
 import com.example.quiz_app_starter.model.Question
 import com.example.quiz_app_starter.model.QuestionScreenState
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,30 +15,51 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class QuestionScreenViewModel(
-    private val questions: List<Question>
+@HiltViewModel
+class QuestionScreenViewModel @Inject constructor(
+    private val repository: QuestionRepository
 ) : ViewModel(), DefaultLifecycleObserver {
 
-    private val _uiState = MutableStateFlow(QuestionScreenState(questions = questions))
+    private val _uiState = MutableStateFlow(QuestionScreenState())
     val uiState: StateFlow<QuestionScreenState> = _uiState.asStateFlow()
 
     private var timerJob: Job? = null
 
-    // React to the Screen coming into view
+    init {
+        observeQuestions()
+        refreshQuestions()
+    }
+
+    private fun observeQuestions() {
+        viewModelScope.launch {
+            repository.getAllQuestions().collect { questions ->
+                _uiState.update { it.copy(questions = questions) }
+                // Start timer for the first question if data is ready and quiz hasn't started
+                if (questions.isNotEmpty() && _uiState.value.currentQuestionIndex == 0 && timerJob == null) {
+                   startTimer()
+                }
+            }
+        }
+    }
+
+    fun refreshQuestions() {
+        viewModelScope.launch {
+            repository.refreshQuestions(limit = 10)
+        }
+    }
+
     override fun onStart(owner: LifecycleOwner) {
         super.onStart(owner)
-        // Resume timer if the quiz is active and no dialog is showing
         val state = _uiState.value
-        if (!state.showDialog && state.currentQuestionIndex < questions.size) {
+        if (!state.showDialog && state.questions.isNotEmpty() && state.currentQuestionIndex < state.questions.size) {
             startTimer()
         }
     }
 
-    // React to the Screen going into the background (e.g., phone call)
     override fun onPause(owner: LifecycleOwner) {
         super.onPause(owner)
-        // Pause the timer by cancelling the background job
         timerJob?.cancel()
     }
 
@@ -72,7 +95,7 @@ class QuestionScreenViewModel(
                 currentQuestionIndex = it.currentQuestionIndex + 1
             )
         }
-        if (_uiState.value.currentQuestionIndex < questions.size) {
+        if (_uiState.value.currentQuestionIndex < _uiState.value.questions.size) {
             startTimer()
         }
     }

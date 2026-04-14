@@ -39,6 +39,9 @@ import androidx.compose.ui.graphics.ColorFilter
 import com.example.quiz_app_starter.navigation.Navigation
 import com.example.quiz_app_starter.presentation.FinishScreen
 import com.example.quiz_app_starter.presentation.QuestionScreen
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
